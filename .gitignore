@@ -1,16 +1,19 @@
-# Compiled class file
+# ===== Salida de compilación (se regenera con ejecutar.sh / ejecutar.bat) =====
+bin/
+out/
+build/
+target/
 *.class
 
-# Log file
+# Archivo temporal generado por ejecutar.bat
+fuentes.txt
+
+# ===== Logs y volcados de la JVM =====
 *.log
+hs_err_pid*
+replay_pid*
 
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
+# ===== Paquetes =====
 *.jar
 *.war
 *.nar
@@ -19,6 +22,28 @@
 *.tar.gz
 *.rar
 
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
-replay_pid*
+# ===== BlueJ / J2ME =====
+*.ctxt
+.mtj.tmp/
+
+# ===== IDEs =====
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.iml
+.project
+.classpath
+.settings/
+nbproject/private/
+.metadata/
+
+# ===== PlantUML (imágenes generadas desde diagramas/*.wsd) =====
+diagramas/out/
+
+# ===== Sistema operativo =====
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+*.swp
