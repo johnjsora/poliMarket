@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PoliMarket · Entregas</title>
+<style>
+  :root {
+    --fondo: #f4f6f8; --tarjeta: #fff; --texto: #1f2933; --suave: #616e7c; --borde: #d9e2ec;
+    --primario: #1d4ed8; --ok: #15803d; --aviso: #b45309; --error: #b91c1c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         background: var(--fondo); color: var(--texto); }
+  header { background: #102a43; color: #fff; padding: 16px 24px 0; }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 12px; font-size: 13px; opacity: .8; }
+  nav { display: flex; gap: 4px; flex-wrap: wrap; }
+  nav button { background: transparent; color: #cbd2d9; border-radius: 6px 6px 0 0; padding: 9px 16px; font-size: 14px; }
+  nav button.activa { background: var(--fondo); color: var(--texto); font-weight: 600; }
+  .vista { display: none; grid-template-columns: 1fr 1.4fr; gap: 20px; padding: 20px 24px; }
+  .vista.activa { display: grid; }
+  .vista.una { grid-template-columns: 1fr; }
+  @media (max-width: 900px) { .vista { grid-template-columns: 1fr; padding: 16px; } }
+  section { background: var(--tarjeta); border: 1px solid var(--borde); border-radius: 10px; padding: 16px; min-width: 0; }
+  h2 { margin: 0 0 4px; font-size: 16px; }
+  .sub { margin: 0 0 12px; color: var(--suave); font-size: 13px; }
+  .venta { border: 1px solid var(--borde); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+  .venta strong { font-size: 15px; }
+  .venta ul, td ul { margin: 6px 0; padding-left: 18px; font-size: 13px; }
+  .meta { color: var(--suave); font-size: 13px; }
+  .fila { display: flex; gap: 8px; margin-top: 8px; }
+  input { flex: 1; min-width: 0; padding: 7px 9px; border: 1px solid var(--borde); border-radius: 6px; font: inherit; }
+  button { padding: 7px 12px; border: 0; border-radius: 6px; background: var(--primario); color: #fff;
+           font: inherit; font-size: 13px; cursor: pointer; }
+  button.ok { background: var(--ok); } button.aviso { background: var(--aviso); } button.gris { background: #7b8794; }
+  button:hover { filter: brightness(1.1); }
+  .tabla { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--borde); vertical-align: top; }
+  th { color: var(--suave); font-weight: 600; }
+  .estado { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .PROGRAMADA, .EMITIDA { background: #dbeafe; color: #1e40af; }
+  .EN_RUTA, .EN_TRANSITO, .BAJO { background: #fef3c7; color: #92400e; }
+  .ENTREGADA, .RECIBIDA, .VIGENTE, .OK { background: #dcfce7; color: #166534; }
+  .FALLIDA, .CANCELADA, .VENCIDA, .NO { background: #fee2e2; color: #991b1b; }
+  .vacio { color: var(--suave); font-style: italic; font-size: 14px; }
+  .acciones { display: flex; gap: 6px; flex-wrap: wrap; }
+  #aviso { position: fixed; right: 20px; bottom: 20px; max-width: 380px; padding: 12px 16px; border-radius: 8px;
+           color: #fff; font-size: 14px; display: none; box-shadow: 0 4px 14px rgba(0,0,0,.2); }
+</style>
+</head>
+<body>
+<header>
+  <h1>PoliMarket · Sistema de Entregas y Logística</h1>
+  <p>Cliente web (HTML + JavaScript) · consume IEntregas, IBodega, IProveedores e IRecursosHumanos vía HTTP/JSON</p>
+  <nav>
+    <button data-vista="entregas" class="activa">Entregas</button>
+    <button data-vista="inventario">Inventario y órdenes de compra</button>
+    <button data-vista="personal">Personal</button>
+  </nav>
+</header>
+
+<div class="vista activa" id="vista-entregas">
+  <section>
+    <h2>Ventas por entregar</h2>
+    <p class="sub">Ventas CONFIRMADAS: qué productos entregar y a quién.</p>
+    <div id="ventas"></div>
+  </section>
+  <section>
+    <h2>Entregas</h2>
+    <p class="sub">Al despachar se registra la salida de stock en bodega y la venta queda FACTURADA.</p>
+    <div id="entregas" class="tabla"></div>
+  </section>
+</div>
+
+<div class="vista" id="vista-inventario">
+  <section>
+    <h2>Inventario de bodega</h2>
+    <p class="sub">Cuando un producto queda bajo el mínimo, la bodega emite una orden de compra automáticamente.</p>
+    <div id="inventario" class="tabla"></div>
+  </section>
+  <section>
+    <h2>Órdenes de compra</h2>
+    <p class="sub">EMITIDA → el proveedor despacha → EN TRÁNSITO → bodega recibe → RECIBIDA (ingresa el stock).</p>
+    <div id="ordenes" class="tabla"></div>
+  </section>
+</div>
+
+<div class="vista una" id="vista-personal">
+  <section>
+    <h2>Personal de ventas (solo lectura)</h2>
+    <p class="sub">Información de Recursos Humanos. Las autorizaciones se gestionan desde el Módulo de Vendedores.</p>
+    <div id="personal" class="tabla"></div>
+  </section>
+</div>
+
+<div id="aviso"></div>
+
+<script>
+const pesos = n => '$' + Number(n).toLocaleString('es-CO');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const chip = (clase, texto) => `<span class="estado ${esc(clase)}">${esc(texto)}</span>`;
+let vista = 'entregas';
+
+async function api(ruta, metodo = 'GET') {
+  const r = await fetch(ruta, { method: metodo });
+  const datos = await r.json();
+  if (!r.ok) throw new Error(datos.error || 'Error en la solicitud');
+  return datos;
+}
+
+function avisar(texto, error = false) {
+  const a = document.getElementById('aviso');
+  a.textContent = texto;
+  a.style.background = error ? 'var(--error)' : 'var(--ok)';
+  a.style.display = 'block';
+  clearTimeout(avisar.t);
+  avisar.t = setTimeout(() => a.style.display = 'none', 3500);
+}
+
+function productos(v) {
+  return '<ul>' + v.productos.map(p => `<li>${p.cantidad} × ${esc(p.nombre)} <span class="meta">(${esc(p.sku)})</span></li>`).join('') + '</ul>';
+}
+
+function vendedor(v) {
+  if (!v.vendedor) return '';
+  return `<div class="meta">Vendedor: ${esc(v.vendedor.nombre)} ${chip(v.vendedor.vigente ? 'VIGENTE' : 'VENCIDA',
+          v.vendedor.vigente ? 'autorización vigente' : 'autorización no vigente')}</div>`;
+}
+
+// ---------------------------------------------------------------- Entregas
+async function cargarVentas() {
+  const ventas = await api('/api/ventas-por-entregar');
+  const cont = document.getElementById('ventas');
+  if (!ventas.length) {
+    cont.innerHTML = '<p class="vacio">No hay ventas pendientes. Registre una venta en el Módulo de Vendedores (app de escritorio).</p>';
+    return;
+  }
+  const escrito = {};
+  cont.querySelectorAll('input[data-venta]').forEach(i => escrito[i.dataset.venta] = i.value);
+  cont.innerHTML = ventas.map(v => `
+    <div class="venta">
+      <strong>Venta #${v.idVenta}</strong> · ${pesos(v.total)}
+      <div class="meta">${esc(v.cliente)} · ${esc(v.telefono)}<br>${esc(v.direccion)} · ${esc(v.fecha)}</div>
+      ${vendedor(v)}
+      ${productos(v)}
+      <div class="fila">
+        <input data-venta="${v.idVenta}" placeholder="Transportista asignado" value="${esc(escrito[v.idVenta] ?? '')}">
+        <button onclick="programar(${v.idVenta})">Programar entrega</button>
+      </div>
+    </div>`).join('');
+}
+
+async function cargarEntregas() {
+  const entregas = await api('/api/entregas');
+  const cont = document.getElementById('entregas');
+  if (!entregas.length) { cont.innerHTML = '<p class="vacio">Aún no hay entregas programadas.</p>'; return; }
+  cont.innerHTML = `<table>
+    <tr><th>Guía</th><th>Venta / Cliente</th><th>Destino</th><th>Fechas</th><th>Estado</th><th>Acciones</th></tr>
+    ${entregas.map(e => `<tr>
+      <td>${esc(e.numeroGuia)}</td>
+      <td>Venta #${e.venta.idVenta}${e.venta.numeroFactura ? ' · ' + esc(e.venta.numeroFactura) : ''}
+          <br><span class="meta">${esc(e.venta.cliente)}</span>${productos(e.venta)}</td>
+      <td>${esc(e.direccion)}<br><span class="meta">${esc(e.transportista)}</span></td>
+      <td><span class="meta">Prog.: ${esc(e.fechaProgramada)}${e.fechaEntregaReal ? '<br>Real: ' + esc(e.fechaEntregaReal) : ''}</span></td>
+      <td>${chip(e.estado, e.estado.replace('_', ' '))}</td>
+      <td class="acciones">${accionesEntrega(e)}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+function accionesEntrega(e) {
+  if (e.estado === 'PROGRAMADA')
+    return `<button onclick="ejecutar('/api/entregas/despachar?id=${e.idEntrega}', 'Entrega ${esc(e.numeroGuia)} despachada y venta facturada.')">Despachar (salida bodega)</button>`;
+  if (e.estado === 'EN_RUTA')
+    return `<button class="ok" onclick="ejecutar('/api/entregas/estado?id=${e.idEntrega}&valor=ENTREGADA', 'Entrega ${esc(e.numeroGuia)}: ENTREGADA.')">Marcar entregada</button>
+            <button class="aviso" onclick="ejecutar('/api/entregas/estado?id=${e.idEntrega}&valor=FALLIDA', 'Entrega ${esc(e.numeroGuia)}: FALLIDA.')">Fallida</button>`;
+  return '<span class="meta">—</span>';
+}
+
+async function programar(idVenta) {
+  const t = document.querySelector(`input[data-venta="${idVenta}"]`).value.trim();
+  if (!t) { avisar('Escriba el nombre del transportista.', true); return; }
+  await ejecutar(`/api/entregas?idVenta=${idVenta}&transportista=${encodeURIComponent(t)}`,
+                 `Entrega programada para la venta #${idVenta}.`);
+}
+
+// ---------------------------------------------------------------- Inventario y órdenes
+async function cargarInventario() {
+  const productos = await api('/api/inventario');
+  document.getElementById('inventario').innerHTML = `<table>
+    <tr><th>SKU</th><th>Producto</th><th>Stock</th><th>Mín.</th><th>Proveedor</th><th>Estado</th><th></th></tr>
+    ${productos.map(p => `<tr>
+      <td>${esc(p.sku)}</td><td>${esc(p.nombre)}</td><td>${p.stock}</td><td>${p.minimo}</td>
+      <td><span class="meta">${esc(p.proveedor)}</span></td>
+      <td>${p.bajoMinimo ? chip('BAJO', 'BAJO MÍNIMO') : chip('OK', 'OK')}</td>
+      <td><button class="gris" onclick="ejecutar('/api/ordenes?idProducto=${p.idProducto}', 'Orden de compra emitida para ${esc(p.nombre)}.')">Pedir</button></td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+async function cargarOrdenes() {
+  const ordenes = await api('/api/ordenes');
+  const cont = document.getElementById('ordenes');
+  if (!ordenes.length) { cont.innerHTML = '<p class="vacio">Aún no hay órdenes de compra.</p>'; return; }
+  cont.innerHTML = `<table>
+    <tr><th>Orden</th><th>Proveedor / Productos</th><th>Fechas</th><th>Total</th><th>Estado</th><th>Acciones</th></tr>
+    ${ordenes.map(o => `<tr>
+      <td>${esc(o.numeroOrden)}</td>
+      <td>${esc(o.proveedor)}<ul>${o.productos.map(p => `<li>${p.solicitada} × ${esc(p.nombre)}${p.recibida ? ' <span class="meta">(recibidas ' + p.recibida + ')</span>' : ''}</li>`).join('')}</ul></td>
+      <td><span class="meta">Emitida: ${esc(o.fechaEmision)}<br>Esperada: ${esc(o.fechaEntregaEsperada)}</span></td>
+      <td>${pesos(o.total)}</td>
+      <td>${chip(o.estado, o.estado.replace('_', ' '))}</td>
+      <td class="acciones">${accionesOrden(o)}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+function accionesOrden(o) {
+  if (o.estado === 'EMITIDA')
+    return `<button onclick="ejecutar('/api/ordenes/despachar?id=${o.idOrden}', 'El proveedor despachó ${esc(o.numeroOrden)}.')">Proveedor despacha</button>
+            <button class="gris" onclick="ejecutar('/api/ordenes/cancelar?id=${o.idOrden}', 'Orden ${esc(o.numeroOrden)} cancelada.')">Cancelar</button>`;
+  if (o.estado === 'EN_TRANSITO')
+    return `<button class="ok" onclick="ejecutar('/api/ordenes/recibir?id=${o.idOrden}', 'Orden ${esc(o.numeroOrden)} recibida: stock actualizado.')">Registrar recepción</button>`;
+  return '<span class="meta">—</span>';
+}
+
+// ---------------------------------------------------------------- Personal
+async function cargarPersonal() {
+  const personal = await api('/api/personal');
+  document.getElementById('personal').innerHTML = `<table>
+    <tr><th>ID</th><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Autorización</th><th>Autorizado por</th><th>Ventas</th></tr>
+    ${personal.map(v => `<tr>
+      <td>${v.id}</td><td>${esc(v.nombre)}</td><td>${esc(v.correo)}</td><td>${esc(v.telefono)}</td>
+      <td>${chip(v.vigente ? 'VIGENTE' : (v.autorizacion.startsWith('VENCIDA') ? 'VENCIDA' : 'NO'), v.autorizacion)}</td>
+      <td>${esc(v.autorizadoPor ?? '—')}</td><td>${v.ventas}</td>
+    </tr>`).join('')}
+  </table>`;
+}
+
+// ---------------------------------------------------------------- General
+async function ejecutar(ruta, mensaje) {
+  try {
+    await api(ruta, 'POST');
+    avisar(mensaje);
+    await refrescar();
+  } catch (err) { avisar(err.message, true); }
+}
+
+async function refrescar() {
+  const cargas = { entregas: [cargarVentas, cargarEntregas], inventario: [cargarInventario, cargarOrdenes], personal: [cargarPersonal] };
+  try { await Promise.all(cargas[vista].map(f => f())); }
+  catch (err) { avisar('No hay conexión con el servidor de PoliMarket.', true); }
+}
+
+document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => {
+  vista = b.dataset.vista;
+  document.querySelectorAll('nav button').forEach(x => x.classList.toggle('activa', x === b));
+  document.querySelectorAll('.vista').forEach(v => v.classList.toggle('activa', v.id === 'vista-' + vista));
+  refrescar();
+}));
+
+refrescar();
+setInterval(() => { if (!document.activeElement || document.activeElement.tagName !== 'INPUT') refrescar(); }, 3000);
+</script>
+</body>
+</html>

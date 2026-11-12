@@ -1,0 +1,210 @@
+@startuml PoliMarket_DiagramaDeClases
+
+' ==================================================
+' CONFIGURACIÓN GENERAL
+' ==================================================
+
+title Diagrama de clases - Sistema PoliMarket\nUML 2.5
+
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam shadowing false
+skinparam monochrome true
+hide empty members
+
+' ==================================================
+' ENUMERACIONES
+' ==================================================
+enum EstadoVenta {
+  BORRADOR
+  CONFIRMADA
+  FACTURADA
+  ANULADA
+}
+
+enum EstadoEntrega {
+  PROGRAMADA
+  EN_RUTA
+  ENTREGADA
+  FALLIDA
+}
+
+enum EstadoOrden {
+  EMITIDA
+  EN_TRANSITO
+  RECIBIDA
+  CANCELADA
+}
+
+' ==================================================
+' CLASES
+' ==================================================
+class RecursosHumanos {
+  - idDepto: int
+  - nombreDepartamento: String
+  - responsable: String
+  - telefonoContacto: String
+  + autorizarVendedor(v: Vendedor): boolean
+  + revocarAutorizacion(v: Vendedor): boolean
+  + consultarEstadoPersonal(idVendedor: int): String
+  + validarAutorizacionVigente(idVendedor: int): boolean
+}
+
+class Vendedor {
+  - idVendedor: int
+  - nombres: String
+  - apellidos: String
+  - correoElectronico: String
+  - telefono: String
+  - estadoAutorizacion: boolean
+  - fechaAutorizacion: Date
+  - fechaVencimientoAutorizacion: Date
+  - autorizadoPor: String
+  - fechaIngreso: Date
+  + solicitarAutorizacion(rh: RecursosHumanos): void
+  + gestionarVenta(c: Cliente): Ventas
+  + consultarProductosDisponibles(): List<Producto>
+  + tieneAutorizacionVigente(): boolean
+}
+
+class Ventas {
+  - idVenta: int
+  - numeroFactura: String
+  - fechaHora: DateTime
+  - subtotal: float
+  - impuestos: float
+  - totalVenta: float
+  - estadoVenta: EstadoVenta
+  + registrarVenta(): boolean
+  + agregarDetalle(p: Producto, cantidad: int): void
+  + consultarDisponibilidadBodega(b: Bodega, p: Producto): boolean
+  + calcularTotales(): void
+  + cancelarVenta(): void
+}
+
+class DetalleVenta {
+  - idDetalle: int
+  - cantidad: int
+  - precioUnitario: float
+  - descuento: float
+  - subtotalLinea: float
+  + calcularSubtotal(): float
+}
+
+class Cliente {
+  - idCliente: int
+  - tipoDocumento: String
+  - numeroDocumento: String
+  - nombres: String
+  - apellidos: String
+  - correo: String
+  - telefono: String
+  - direccionResidencia: String
+  + registrarCliente(): void
+  + actualizarDatosContacto(telefono: String, correo: String): void
+}
+
+class Producto {
+  - idProducto: int
+  - codigoSku: String
+  - nombreProducto: String
+  - descripcion: String
+  - precioUnitario: float
+  - stockMinimo: int
+  - stockActual: int
+  + actualizarStock(cantidad: int): void
+  + verificarStockDisponible(cantidadRequerida: int): boolean
+  + requiereReabastecimiento(): boolean
+}
+
+class Bodega {
+  - idBodega: int
+  - nombreBodega: String
+  - ubicacionFisica: String
+  - capacidadMaxima: int
+  + verificarStock(p: Producto): int
+  + registrarSalidaStock(p: Producto, cantidad: int): void
+  + registrarIngresoStock(p: Producto, cantidad: int): void
+  + listarProductosBajoMinimo(): List<Producto>
+  + solicitarReabastecimiento(pr: Proveedor, p: Producto): OrdenCompra
+}
+
+class Proveedor {
+  - idProveedor: int
+  - nitEmpresa: String
+  - nombreEmpresa: String
+  - personaContacto: String
+  - telefonoContacto: String
+  - correoCorporativo: String
+  + suministrarProductos(p: Producto, cantidad: int): void
+  + emitirFacturaProveedor(): String
+  + suministraProducto(p: Producto): boolean
+}
+
+class OrdenCompra {
+  - idOrden: int
+  - numeroOrden: String
+  - fechaEmision: Date
+  - fechaEntregaEsperada: Date
+  - estadoOrden: EstadoOrden
+  - totalOrden: float
+  + generarOrden(): void
+  + registrarRecepcion(): void
+}
+
+class DetalleOrdenCompra {
+  - idDetalleOrden: int
+  - cantidadSolicitada: int
+  - cantidadRecibida: int
+  - precioCompra: float
+  - subtotalLinea: float
+  + calcularSubtotal(): float
+}
+
+class Entregas {
+  - idEntrega: int
+  - numeroGuia: String
+  - fechaProgramada: Date
+  - fechaEntregaReal: Date
+  - direccionDestino: String
+  - estadoEntrega: EstadoEntrega
+  - transportistaAsignado: String
+  + programarEntrega(v: Ventas): void
+  + registrarSalidaBodega(b: Bodega): void
+  + actualizarEstadoEnvio(nuevoEstado: EstadoEntrega): void
+}
+
+' ==================================================
+' RELACIONES
+' ==================================================
+
+' --- Recursos humanos y ventas ---
+RecursosHumanos "1" --> "0..*" Vendedor : autoriza
+Vendedor "1" --> "0..*" Ventas : realiza
+Ventas "0..*" --> "1" Cliente : atiende
+
+' --- Composicion: la venta posee sus lineas de detalle ---
+Ventas "1" *-- "1..*" DetalleVenta : contiene
+DetalleVenta "0..*" --> "1" Producto : refiere
+
+' --- Bodega almacena los productos ---
+Bodega "1" --> "0..*" Producto : almacena
+Ventas ..> Bodega : <<use>> verifica stock
+
+' --- Reabastecimiento y registro de compras ---
+Bodega "1" --> "0..*" OrdenCompra : solicita
+OrdenCompra "0..*" --> "1" Proveedor : se emite a
+OrdenCompra "1" *-- "1..*" DetalleOrdenCompra : contiene
+DetalleOrdenCompra "0..*" --> "1" Producto : solicita
+Proveedor "0..*" --> "0..*" Producto : suministra
+
+' --- Entregas ---
+Entregas "1" --> "1" Ventas : se basa en
+Entregas "1" --> "1" Bodega : descarga stock
+
+' --- Dependencias hacia las enumeraciones ---
+Ventas ..> EstadoVenta : <<use>>
+Entregas ..> EstadoEntrega : <<use>>
+OrdenCompra ..> EstadoOrden : <<use>>
+
+@enduml

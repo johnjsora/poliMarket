@@ -1,0 +1,82 @@
+@startuml PoliMarket_DiagramaComponentes
+
+skinparam componentStyle uml2
+skinparam shadowing false
+skinparam monochrome true
+title Diagrama de Componentes UML 2.5 - PoliMarket
+
+' ==================================================
+' INTERFACES PROVISTAS
+' ==================================================
+interface IRecursosHumanos
+interface IVentas
+interface IBodega
+interface IProveedores
+interface IEntregas
+
+' ==================================================
+' CAPA DE PRESENTACION / CLIENTES
+' ==================================================
+package "Capa de Presentacion / Clientes" {
+  [ModuloVendedoresApp] <<component>>
+  [SistemaEntregasLogistica] <<component>>
+}
+
+' ==================================================
+' CAPA DE NEGOCIO
+' ==================================================
+package "Capa de Negocio" {
+  [RecursosHumanosFacade] <<component>>
+  [VentasFacade] <<component>>
+  [BodegaComponent] <<component>>
+  [EntregasComponent] <<component>>
+  [ProveedoresComponent] <<component>>
+}
+
+' ==================================================
+' CAPA DE DATOS
+' ==================================================
+package "Capa de Datos" {
+  [RepositorioPoliMarket] <<component>>
+}
+
+' ==================================================
+' INTERFACES PROVISTAS: el componente realiza su interfaz
+' ==================================================
+[RecursosHumanosFacade] -up- IRecursosHumanos
+[VentasFacade] -up- IVentas
+[BodegaComponent] -up- IBodega
+[ProveedoresComponent] -up- IProveedores
+[EntregasComponent] -up- IEntregas
+
+' ==================================================
+' INTERFACES REQUERIDAS POR LOS CLIENTES
+' ==================================================
+[ModuloVendedoresApp] ..> IRecursosHumanos : <<use>>
+[ModuloVendedoresApp] ..> IVentas : <<use>>
+[ModuloVendedoresApp] ..> IBodega : <<use>>
+
+[SistemaEntregasLogistica] ..> IRecursosHumanos : <<use>>
+[SistemaEntregasLogistica] ..> IEntregas : <<use>>
+[SistemaEntregasLogistica] ..> IBodega : <<use>>
+[SistemaEntregasLogistica] ..> IProveedores : <<use>>
+
+' ==================================================
+' INTERFACES REQUERIDAS ENTRE COMPONENTES DE NEGOCIO
+' ==================================================
+[VentasFacade] ..> IRecursosHumanos : <<use>>
+[VentasFacade] ..> IBodega : <<use>>
+[BodegaComponent] ..> IProveedores : <<use>>
+[EntregasComponent] ..> IVentas : <<use>>
+[EntregasComponent] ..> IBodega : <<use>>
+
+' ==================================================
+' ACCESO A LA CAPA DE DATOS
+' ==================================================
+[RecursosHumanosFacade] ..> [RepositorioPoliMarket]
+[VentasFacade] ..> [RepositorioPoliMarket]
+[BodegaComponent] ..> [RepositorioPoliMarket]
+[ProveedoresComponent] ..> [RepositorioPoliMarket]
+[EntregasComponent] ..> [RepositorioPoliMarket]
+
+@enduml
